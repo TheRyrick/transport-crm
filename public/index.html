@@ -1,4 +1,18 @@
-<!DOCTYPE html>
+  // Розрахунок суточних
+        function calculateDailyAllowance(startDate, endDate) {
+            if (!startDate || !endDate) return 0;
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+            const diffTime = Math.abs(end - start);
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            return diffDays * 200;
+        }
+
+        // Розрахунок зарплати водія
+        function calculateDriverSalary(freightSum, fuelCost, dailyAllowance) {
+            const result = (freightSum - fuelCost - dailyAllowance) / 4;
+            return Math.max(0, result);
+        }<!DOCTYPE html>
 <html lang="uk">
 <head>
     <meta charset="UTF-8">
@@ -329,32 +343,62 @@
             <div class="form-grid">
                 <div class="form-group">
                     <label>🏁 Спідометр початок</label>
-                    <input type="number" id="speedometerStart" placeholder="100000">
+                    <input type="number" id="speedometerStart" placeholder="100000" required>
                 </div>
                 
                 <div class="form-group">
                     <label>🏁 Спідометр кінець</label>
-                    <input type="number" id="speedometerEnd" placeholder="100500">
+                    <input type="number" id="speedometerEnd" placeholder="100500" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>📅 Дата початку</label>
+                    <input type="date" id="startDate" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>📅 Дата кінця</label>
+                    <input type="date" id="endDate" required>
                 </div>
                 
                 <div class="form-group">
                     <label>🚗 Номер авто</label>
-                    <input type="text" id="carNumber" placeholder="АА1234ВВ">
+                    <input type="text" id="carNumber" placeholder="АА1234ВВ" required>
                 </div>
                 
                 <div class="form-group">
-                    <label>👤 Водій</label>
-                    <input type="text" id="driverName" placeholder="Іванов І.І.">
+                    <label>👤 Прізвище водія</label>
+                    <input type="text" id="driverName" placeholder="Іванов І.І." required>
                 </div>
                 
                 <div class="form-group">
                     <label>🗺️ Маршрут</label>
-                    <input type="text" id="route" placeholder="Київ → Львів">
+                    <input type="text" id="route" placeholder="Київ → Львів" required>
                 </div>
                 
                 <div class="form-group">
-                    <label>💰 Фрахт (грн)</label>
-                    <input type="number" id="freightSum" placeholder="15000">
+                    <label>⛽ Витрати на паливо (грн)</label>
+                    <input type="number" step="0.01" id="fuelAmount" placeholder="3500" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>🛢️ Кількість палива (л)</label>
+                    <input type="number" step="0.1" id="fuelLiters" placeholder="120" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>💰 Сума фрахту (грн)</label>
+                    <input type="number" step="0.01" id="freightSum" placeholder="15000" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>🔧 Витрати на ремонт (грн)</label>
+                    <input type="number" step="0.01" id="repairCosts" placeholder="0">
+                </div>
+                
+                <div class="form-group">
+                    <label>❗ Непередбачувані витрати (грн)</label>
+                    <input type="number" step="0.01" id="unexpectedExpenses" placeholder="0">
                 </div>
             </div>
             
@@ -376,14 +420,20 @@
                         <th>🚗 Авто</th>
                         <th>👤 Водій</th>
                         <th>🗺️ Маршрут</th>
+                        <th>📅 Період</th>
                         <th>📏 Км</th>
                         <th>💰 Фрахт</th>
+                        <th>⛽ Паливо</th>
+                        <th>🛢️ Літри</th>
+                        <th>🔧 Ремонт</th>
+                        <th>💵 Суточні</th>
+                        <th>💸 Зарплата</th>
                         <th>⚙️ Дії</th>
                     </tr>
                 </thead>
                 <tbody id="tripsTable">
                     <tr>
-                        <td colspan="6">
+                        <td colspan="12">
                             <div class="empty-state">
                                 <div class="icon">📦</div>
                                 <p><strong>Рейсів поки що немає</strong></p>
@@ -440,7 +490,7 @@
             if (trips.length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="6">
+                        <td colspan="12">
                             <div class="empty-state">
                                 <div class="icon">📦</div>
                                 <p><strong>Рейсів поки що немає</strong></p>
@@ -457,10 +507,19 @@
                     <td><strong>${trip.carNumber || 'Не вказано'}</strong></td>
                     <td>${trip.driverName || 'Не вказано'}</td>
                     <td>${trip.route || 'Не вказано'}</td>
-                    <td>${trip.distance || 0} км</td>
-                    <td><strong style="color: #10b981;">${(trip.freightSum || 0).toLocaleString()} ₴</strong></td>
+                    <td style="font-size: 0.8rem;">
+                        ${trip.startDate ? new Date(trip.startDate).toLocaleDateString('uk-UA') : ''} - 
+                        ${trip.endDate ? new Date(trip.endDate).toLocaleDateString('uk-UA') : ''}
+                    </td>
+                    <td><strong>${trip.distance || 0}</strong> км</td>
+                    <td><strong style="color: #10b981;">${(trip.freightSum || 0).toLocaleString()}</strong> ₴</td>
+                    <td style="color: #dc2626;">${(trip.fuelAmount || 0).toLocaleString()} ₴</td>
+                    <td>${(trip.fuelLiters || 0).toFixed(1)} л</td>
+                    <td style="color: #f59e0b;">${(trip.repairCosts || 0).toLocaleString()} ₴</td>
+                    <td style="color: #3b82f6;">${trip.dailyAllowance || 0} ₴</td>
+                    <td><strong style="color: #059669;">${(trip.driverSalary || 0).toFixed(2)}</strong> ₴</td>
                     <td>
-                        <button class="delete-btn" onclick="deleteTrip(${trip.id})">🗑️ Видалити</button>
+                        <button class="delete-btn" onclick="deleteTrip(${trip.id})">🗑️</button>
                     </td>
                 </tr>
             `).join('');
@@ -493,29 +552,39 @@
         async function saveTrip() {
             const speedometerStart = parseInt(document.getElementById('speedometerStart').value) || 0;
             const speedometerEnd = parseInt(document.getElementById('speedometerEnd').value) || 0;
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            const fuelAmount = parseFloat(document.getElementById('fuelAmount').value) || 0;
+            const freightSum = parseFloat(document.getElementById('freightSum').value) || 0;
             
-            if (!document.getElementById('carNumber').value) {
-                alert('⚠️ Будь ласка, введіть номер авто');
+            // Перевірка обов'язкових полів
+            if (!document.getElementById('carNumber').value || !startDate || !endDate) {
+                alert('⚠️ Будь ласка, заповніть обов\'язкові поля: номер авто, дати');
                 return;
             }
+
+            // Розрахунки
+            const distance = speedometerEnd - speedometerStart;
+            const dailyAllowance = calculateDailyAllowance(startDate, endDate);
+            const driverSalary = calculateDriverSalary(freightSum, fuelAmount, dailyAllowance);
 
             const tripData = {
                 speedometerStart: speedometerStart,
                 speedometerEnd: speedometerEnd,
+                startDate: startDate,
+                endDate: endDate,
                 carNumber: document.getElementById('carNumber').value,
                 driverName: document.getElementById('driverName').value,
                 route: document.getElementById('route').value,
-                freightSum: parseFloat(document.getElementById('freightSum').value) || 0,
-                startDate: '2025-06-08',
-                endDate: '2025-06-09',
-                fuelAmount: 0,
-                fuelLiters: 0,
-                repairCosts: 0,
-                unexpectedExpenses: 0,
-                dailyAllowance: 200,
-                driverSalary: 0,
-                distance: speedometerEnd - speedometerStart,
-                pricePerKm: 0
+                fuelAmount: fuelAmount,
+                fuelLiters: parseFloat(document.getElementById('fuelLiters').value) || 0,
+                freightSum: freightSum,
+                repairCosts: parseFloat(document.getElementById('repairCosts').value) || 0,
+                unexpectedExpenses: parseFloat(document.getElementById('unexpectedExpenses').value) || 0,
+                dailyAllowance: dailyAllowance,
+                driverSalary: driverSalary,
+                distance: distance,
+                pricePerKm: distance > 0 ? freightSum / distance : 0
             };
 
             try {
@@ -526,7 +595,10 @@
                 });
 
                 if (response.ok) {
-                    alert('✅ Рейс успішно збережено!');
+                    alert('✅ Рейс успішно збережено!\n\n' + 
+                          `📏 Відстань: ${distance} км\n` +
+                          `💵 Суточні: ${dailyAllowance} грн\n` +
+                          `💸 Зарплата водія: ${driverSalary.toFixed(2)} грн`);
                     hideForm();
                     loadTrips();
                 } else {
@@ -554,10 +626,16 @@
         function clearForm() {
             document.getElementById('speedometerStart').value = '';
             document.getElementById('speedometerEnd').value = '';
+            document.getElementById('startDate').value = '';
+            document.getElementById('endDate').value = '';
             document.getElementById('carNumber').value = '';
             document.getElementById('driverName').value = '';
             document.getElementById('route').value = '';
+            document.getElementById('fuelAmount').value = '';
+            document.getElementById('fuelLiters').value = '';
             document.getElementById('freightSum').value = '';
+            document.getElementById('repairCosts').value = '';
+            document.getElementById('unexpectedExpenses').value = '';
         }
 
         console.log('🎉 CRM система готова!');
