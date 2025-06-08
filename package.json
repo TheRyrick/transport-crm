@@ -1,23 +1,29 @@
 {
-  "name": "transport-crm-bus0011",
+  "name": "cargo-transport-crm",
   "version": "1.0.0",
-  "description": "CRM система для вантажних перевезень - bus0011.com",
-  "main": "server.js",
-  "scripts": {
-    "start": "node server.js",
-    "build": "echo 'No build step required'",
-    "dev": "node server.js"
-  },
+  "private": true,
   "dependencies": {
-    "express": "^4.18.2",
-    "pg": "^8.11.0", 
-    "cors": "^2.8.5",
-    "dotenv": "^16.0.3"
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-scripts": "5.0.1",
+    "lucide-react": "^0.263.1"
   },
-  "engines": {
-    "node": "18.x"
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject"
   },
-  "keywords": ["crm", "transport", "logistics"],
-  "author": "bus0011.com",
-  "license": "MIT"
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  }
 }
