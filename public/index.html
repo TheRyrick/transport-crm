@@ -1,4 +1,9 @@
-  // Розрахунок суточних
+    <!-- Навігаційні вкладки -->
+        <div style="display: flex; gap: 10px; margin-bottom: 30px; flex-wrap: wrap;">
+            <button onclick="showTab('trips')" id="tripsTab" class="btn btn-primary">📋 Рейси</button>
+            <button onclick="showTab('generalStats')" id="generalStatsTab" class="btn btn-secondary">📊 Загальна статистика</button>
+            <button onclick="showTab('carStats')" id="carStatsTab" class="btn btn-secondary">🚛 Статистика по авто</button>
+        </div>        // Розрахунок суточних
         function calculateDailyAllowance(startDate, endDate) {
             if (!startDate || !endDate) return 0;
             const start = new Date(startDate);
@@ -30,6 +35,7 @@
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             color: #333;
+            overflow-x: hidden; /* Приховуємо горизонтальний скрол */
         }
         
         .container {
@@ -331,13 +337,15 @@
             </div>
         </div>
 
-        <!-- Кнопка додавання -->
-        <button class="add-btn" onclick="showForm()">
-            ➕ Додати новий рейс
-        </button>
+        <!-- Контент вкладок -->
+        <div id="tripsContent">
+            <!-- Кнопка додавання -->
+            <button class="add-btn" onclick="showForm()">
+                ➕ Додати новий рейс
+            </button>
 
-        <!-- Форма -->
-        <div class="form-container" id="tripForm">
+            <!-- Форма -->
+            <div class="form-container" id="tripForm">
             <h2 style="margin-bottom: 25px; font-size: 1.5rem;">📝 Новий рейс</h2>
             
             <div class="form-grid">
@@ -468,9 +476,9 @@
 
         // Ініціалізація
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('🚀 CRM система запускається...');
             loadTrips();
             checkAPI();
+            showTab('trips'); // Показати вкладку рейсів за замовчуванням
         });
 
         // Перевірка API
@@ -479,10 +487,8 @@
                 const response = await fetch('/api/test');
                 const data = await response.json();
                 document.getElementById('status').innerHTML = '🟢 Система працює';
-                console.log('✅ API працює:', data);
             } catch (error) {
                 document.getElementById('status').innerHTML = '🔴 Помилка підключення';
-                console.error('❌ Помилка API:', error);
             }
         }
 
@@ -493,9 +499,10 @@
                 trips = await response.json();
                 renderTrips();
                 updateStats();
-                console.log('📊 Завантажено рейсів:', trips.length);
+                updateDetailedStats();
+                updateCarStats();
             } catch (error) {
-                console.error('❌ Помилка завантаження:', error);
+                // Помилка завантаження
             }
         }
 
@@ -566,16 +573,12 @@
 
         // Збереження рейсу
         async function saveTrip() {
-            console.log('🔧 Початок збереження рейсу...');
-            
             const speedometerStart = parseInt(document.getElementById('speedometerStart').value) || 0;
             const speedometerEnd = parseInt(document.getElementById('speedometerEnd').value) || 0;
             const startDate = document.getElementById('startDate').value;
             const endDate = document.getElementById('endDate').value;
             const fuelAmount = parseFloat(document.getElementById('fuelAmount').value) || 0;
             const freightSum = parseFloat(document.getElementById('freightSum').value) || 0;
-            
-            console.log('📝 Дані з форми:', { speedometerStart, speedometerEnd, startDate, endDate, fuelAmount, freightSum });
             
             // Перевірка обов'язкових полів
             if (!document.getElementById('carNumber').value || !startDate || !endDate) {
@@ -588,8 +591,6 @@
                 const distance = speedometerEnd - speedometerStart;
                 const dailyAllowance = calculateDailyAllowance(startDate, endDate);
                 const driverSalary = calculateDriverSalary(freightSum, fuelAmount, dailyAllowance);
-
-                console.log('🧮 Розрахунки:', { distance, dailyAllowance, driverSalary });
 
                 const tripData = {
                     speedometerStart: speedometerStart,
@@ -610,15 +611,11 @@
                     pricePerKm: distance > 0 ? freightSum / distance : 0
                 };
 
-                console.log('📊 Підготовлені дані для відправки:', tripData);
-
                 const response = await fetch('/api/trips', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(tripData)
                 });
-
-                console.log('📡 Відповідь сервера:', response.status);
 
                 if (response.ok) {
                     alert('✅ Рейс успішно збережено!\n\n' + 
@@ -628,12 +625,9 @@
                     hideForm();
                     await loadTrips();
                 } else {
-                    const errorText = await response.text();
-                    console.error('❌ Помилка сервера:', errorText);
-                    alert('❌ Помилка збереження рейсу: ' + errorText);
+                    alert('❌ Помилка збереження рейсу');
                 }
             } catch (error) {
-                console.error('❌ Помилка запиту:', error);
                 alert('❌ Помилка: ' + error.message);
             }
         }
@@ -649,6 +643,143 @@
                     alert('❌ Помилка видалення');
                 }
             }
+        }
+
+        // Перемикання вкладок
+        function showTab(tabName) {
+            // Приховати всі вкладки
+            document.getElementById('tripsContent').style.display = 'none';
+            document.getElementById('generalStatsContent').style.display = 'none';
+            document.getElementById('carStatsContent').style.display = 'none';
+            
+            // Скинути стилі кнопок
+            document.getElementById('tripsTab').className = 'btn btn-secondary';
+            document.getElementById('generalStatsTab').className = 'btn btn-secondary';
+            document.getElementById('carStatsTab').className = 'btn btn-secondary';
+            
+            // Показати вибрану вкладку
+            if (tabName === 'trips') {
+                document.getElementById('tripsContent').style.display = 'block';
+                document.getElementById('tripsTab').className = 'btn btn-primary';
+            } else if (tabName === 'generalStats') {
+                document.getElementById('generalStatsContent').style.display = 'block';
+                document.getElementById('generalStatsTab').className = 'btn btn-primary';
+                updateDetailedStats();
+            } else if (tabName === 'carStats') {
+                document.getElementById('carStatsContent').style.display = 'block';
+                document.getElementById('carStatsTab').className = 'btn btn-primary';
+                updateCarStats();
+            }
+        }
+
+        // Детальна статистика
+        function updateDetailedStats() {
+            const totalDistance = trips.reduce((sum, trip) => sum + (trip.distance || 0), 0);
+            const totalFuel = trips.reduce((sum, trip) => sum + (trip.fuelAmount || 0), 0);
+            const totalLiters = trips.reduce((sum, trip) => sum + (trip.fuelLiters || 0), 0);
+            const totalRepair = trips.reduce((sum, trip) => sum + (trip.repairCosts || 0), 0);
+            const totalDaily = trips.reduce((sum, trip) => sum + (trip.dailyAllowance || 0), 0);
+            const totalSalaries = trips.reduce((sum, trip) => sum + (trip.driverSalary || 0), 0);
+            const totalRevenue = trips.reduce((sum, trip) => sum + (trip.freightSum || 0), 0);
+            const totalUnexpected = trips.reduce((sum, trip) => sum + (trip.unexpectedExpenses || 0), 0);
+            
+            const totalProfit = totalRevenue - totalFuel - totalDaily - totalSalaries - totalRepair - totalUnexpected;
+            const avgPriceKm = totalDistance > 0 ? totalRevenue / totalDistance : 0;
+
+            document.getElementById('statTotalDistance').textContent = totalDistance.toLocaleString();
+            document.getElementById('statTotalFuel').textContent = totalFuel.toLocaleString() + '₴';
+            document.getElementById('statTotalLiters').textContent = totalLiters.toFixed(1) + 'л';
+            document.getElementById('statTotalRepair').textContent = totalRepair.toLocaleString() + '₴';
+            document.getElementById('statTotalDaily').textContent = totalDaily.toLocaleString() + '₴';
+            document.getElementById('statTotalSalaries').textContent = totalSalaries.toFixed(0) + '₴';
+            document.getElementById('statAvgPriceKm').textContent = avgPriceKm.toFixed(2) + '₴';
+            document.getElementById('statTotalProfit').textContent = totalProfit.toFixed(0) + '₴';
+        }
+
+        // Статистика по автомобілях
+        function updateCarStats() {
+            const carStats = {};
+            
+            trips.forEach(trip => {
+                if (!carStats[trip.carNumber]) {
+                    carStats[trip.carNumber] = {
+                        carNumber: trip.carNumber,
+                        totalTrips: 0,
+                        totalDistance: 0,
+                        totalFuel: 0,
+                        totalFreight: 0,
+                        totalSalaries: 0,
+                        drivers: new Set()
+                    };
+                }
+                
+                const car = carStats[trip.carNumber];
+                car.totalTrips += 1;
+                car.totalDistance += trip.distance || 0;
+                car.totalFuel += trip.fuelAmount || 0;
+                car.totalFreight += trip.freightSum || 0;
+                car.totalSalaries += trip.driverSalary || 0;
+                if (trip.driverName) {
+                    car.drivers.add(trip.driverName);
+                }
+            });
+
+            const container = document.getElementById('carStatsContainer');
+            
+            if (Object.keys(carStats).length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="icon">🚗</div>
+                        <p><strong>Додайте рейси для перегляду статистики по авто</strong></p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = Object.values(carStats).map(car => `
+                <div style="background: white; border-radius: 15px; padding: 25px; margin-bottom: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.1);">
+                    <h3 style="margin: 0 0 15px 0; color: #333; font-size: 1.3rem;">🚛 ${car.carNumber}</h3>
+                    <p style="margin-bottom: 20px; color: #666;">Водії: ${Array.from(car.drivers).join(', ') || 'Не вказано'}</p>
+                    
+                    <div class="stats">
+                        <div class="stat-card">
+                            <div class="icon">📋</div>
+                            <div class="number">${car.totalTrips}</div>
+                            <div class="label">Рейсів</div>
+                        </div>
+                        
+                        <div class="stat-card">
+                            <div class="icon">📏</div>
+                            <div class="number">${car.totalDistance.toLocaleString()}</div>
+                            <div class="label">Кілометрів</div>
+                        </div>
+                        
+                        <div class="stat-card">
+                            <div class="icon">💰</div>
+                            <div class="number">${car.totalFreight.toLocaleString()}₴</div>
+                            <div class="label">Фрахт</div>
+                        </div>
+                        
+                        <div class="stat-card">
+                            <div class="icon">⛽</div>
+                            <div class="number">${car.totalFuel.toLocaleString()}₴</div>
+                            <div class="label">Паливо</div>
+                        </div>
+                        
+                        <div class="stat-card">
+                            <div class="icon">💸</div>
+                            <div class="number">${car.totalSalaries.toFixed(0)}₴</div>
+                            <div class="label">Зарплати</div>
+                        </div>
+                        
+                        <div class="stat-card">
+                            <div class="icon">💹</div>
+                            <div class="number">${(car.totalFreight - car.totalFuel - car.totalSalaries).toFixed(0)}₴</div>
+                            <div class="label">Прибуток</div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
         }
 
         // Очищення форми
