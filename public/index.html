@@ -1,326 +1,731 @@
-```html
+import React, { useState, useEffect } from 'react';
+import { Plus, Edit2, Trash2, Calculator, TrendingUp } from 'lucide-react';
 
+const API_BASE_URL = '/api';
 
+const TransportCRM = () => {
+  const [trips, setTrips] = useState([]);
+  const [showForm, setShowForm] = useState(false);
+  const [editingTrip, setEditingTrip] = useState(null);
+  const [activeTab, setActiveTab] = useState('trips');
+  const [loading, setLoading] = useState(false);
+  const [formData, setFormData] = useState({
+    speedometerStart: '',
+    speedometerEnd: '',
+    startDate: '',
+    endDate: '',
+    carNumber: '',
+    driverName: '',
+    route: '',
+    fuelAmount: '',
+    fuelLiters: '',
+    freightSum: '',
+    repairCosts: '',
+    unexpectedExpenses: ''
+  });
 
+  // Завантаження даних з сервера при старті
+  useEffect(() => {
+    fetchTrips();
+  }, []);
+
+  // API функції
+  const fetchTrips = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(`${API_BASE_URL}/trips`);
+      if (!response.ok) throw new Error('Помилка завантаження даних');
+      const data = await response.json();
+      setTrips(data);
+    } catch (error) {
+      console.error('Помилка:', error);
+      alert('Помилка завантаження даних. Перевірте підключення до сервера.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const saveTrip = async (tripData) => {
+    try {
+      const url = editingTrip 
+        ? `${API_BASE_URL}/trips/${editingTrip.id}`
+        : `${API_BASE_URL}/trips`;
+      
+      const method = editingTrip ? 'PUT' : 'POST';
+      
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(tripData),
+      });
+
+      if (!response.ok) throw new Error('Помилка збереження');
+      
+      await fetchTrips();
+      return true;
+    } catch (error) {
+      console.error('Помилка:', error);
+      alert('Помилка збереження. Спробуйте ще раз.');
+      return false;
+    }
+  };
+
+  const deleteTrip = async (id) => {
+    if (!window.confirm('Видалити цей рейс?')) return;
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/trips/${id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) throw new Error('Помилка видалення');
+      
+      await fetchTrips();
+    } catch (error) {
+      console.error('Помилка:', error);
+      alert('Помилка видалення. Спробуйте ще раз.');
+    }
+  };
+
+  // Розрахунок суточних
+  const calculateDailyAllowance = (startDate, endDate) => {
+    if (!startDate || !endDate) return 0;
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const diffTime = Math.abs(end - start);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays * 200;
+  };
+
+  // Розрахунок зарплати водія
+  const calculateDriverSalary = (freightSum, fuelCost, dailyAllowance) => {
+    const result = (freightSum - fuelCost - dailyAllowance) / 4;
+    return Math.max(0, result);
+  };
+
+  // Обробка подачі форми
+  const handleSubmit = async () => {
+    if (!formData.speedometerStart || !formData.speedometerEnd || !formData.startDate || 
+        !formData.endDate || !formData.carNumber || !formData.driverName || !formData.route || 
+        !formData.fuelAmount || !formData.fuelLiters || !formData.freightSum) {
+      alert('Будь ласка, заповніть усі обов\'язкові поля');
+      return;
+    }
     
+    const dailyAllowance = calculateDailyAllowance(formData.startDate, formData.endDate);
+    const fuelCost = parseFloat(formData.fuelAmount) || 0;
+    const freightSum = parseFloat(formData.freightSum) || 0;
+    const repairCosts = parseFloat(formData.repairCosts) || 0;
+    const driverSalary = calculateDriverSalary(freightSum, fuelCost, dailyAllowance);
+    const distance = (parseFloat(formData.speedometerEnd) || 0) - (parseFloat(formData.speedometerStart) || 0);
     
-    CRM для вантажних перевезень - bus0011.com
+    const tripData = {
+      speedometerStart: parseFloat(formData.speedometerStart) || 0,
+      speedometerEnd: parseFloat(formData.speedometerEnd) || 0,
+      startDate: formData.startDate,
+      endDate: formData.endDate,
+      carNumber: formData.carNumber,
+      driverName: formData.driverName,
+      route: formData.route,
+      fuelAmount: fuelCost,
+      fuelLiters: parseFloat(formData.fuelLiters) || 0,
+      freightSum: freightSum,
+      repairCosts: repairCosts,
+      unexpectedExpenses: parseFloat(formData.unexpectedExpenses) || 0,
+      dailyAllowance: dailyAllowance,
+      driverSalary: driverSalary,
+      distance: distance,
+      pricePerKm: distance > 0 ? freightSum / distance : 0
+    };
+
+    const success = await saveTrip(tripData);
+    if (success) {
+      resetForm();
+    }
+  };
+
+  // Скидання форми
+  const resetForm = () => {
+    setFormData({
+      speedometerStart: '',
+      speedometerEnd: '',
+      startDate: '',
+      endDate: '',
+      carNumber: '',
+      driverName: '',
+      route: '',
+      fuelAmount: '',
+      fuelLiters: '',
+      freightSum: '',
+      repairCosts: '',
+      unexpectedExpenses: ''
+    });
+    setShowForm(false);
+    setEditingTrip(null);
+  };
+
+  // Редагування рейсу
+  const editTrip = (trip) => {
+    setFormData({
+      speedometerStart: trip.speedometerStart.toString(),
+      speedometerEnd: trip.speedometerEnd.toString(),
+      startDate: trip.startDate,
+      endDate: trip.endDate,
+      carNumber: trip.carNumber,
+      driverName: trip.driverName || '',
+      route: trip.route,
+      fuelAmount: trip.fuelAmount.toString(),
+      fuelLiters: trip.fuelLiters?.toString() || '',
+      freightSum: trip.freightSum.toString(),
+      repairCosts: trip.repairCosts?.toString() || '',
+      unexpectedExpenses: trip.unexpectedExpenses.toString()
+    });
+    setEditingTrip(trip);
+    setShowForm(true);
+  };
+
+  // Розрахунок статистики
+  const getStatistics = () => {
+    if (trips.length === 0) return null;
+
+    const totalTrips = trips.length;
+    const totalDistance = trips.reduce((sum, trip) => sum + (trip.distance || 0), 0);
+    const totalFuel = trips.reduce((sum, trip) => sum + (trip.fuelAmount || 0), 0);
+    const totalFuelLiters = trips.reduce((sum, trip) => sum + (trip.fuelLiters || 0), 0);
+    const totalFreight = trips.reduce((sum, trip) => sum + (trip.freightSum || 0), 0);
+    const totalDriverSalaries = trips.reduce((sum, trip) => sum + (trip.driverSalary || 0), 0);
+    const totalDailyAllowances = trips.reduce((sum, trip) => sum + (trip.dailyAllowance || 0), 0);
+    const totalRepairCosts = trips.reduce((sum, trip) => sum + (trip.repairCosts || 0), 0);
+    const totalUnexpectedExpenses = trips.reduce((sum, trip) => sum + (trip.unexpectedExpenses || 0), 0);
+    const totalProfit = totalFreight - totalFuel - totalDailyAllowances - totalDriverSalaries - totalRepairCosts - totalUnexpectedExpenses;
+    const avgPricePerKm = totalDistance > 0 ? totalFreight / totalDistance : 0;
+
+    return {
+      totalTrips,
+      totalDistance,
+      totalFuel,
+      totalFuelLiters,
+      totalFreight,
+      totalDriverSalaries,
+      totalDailyAllowances,
+      totalRepairCosts,
+      totalUnexpectedExpenses,
+      totalProfit,
+      avgDistance: totalDistance / totalTrips,
+      avgFuelConsumption: totalFuelLiters / totalDistance * 100,
+      avgPricePerKm
+    };
+  };
+
+  // Статистика по автомобілях
+  const getCarStatistics = () => {
+    const carStats = {};
     
-    
-    
-    
-    
-    
-        @keyframes spin { to { transform: rotate(360deg); } }
-        .animate-spin { animation: spin 1s linear infinite; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
-    
-
-
-    
-        
-            
-                
-                CRM bus0011.com
-                Завантаження системи управління перевезеннями...
-            
-        
-    
-    
-    
-        const { useState, useEffect } = React;
-        
-        // Іконки
-        const Plus = () => React.createElement('svg', { className: 'w-5 h-5', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, 
-            React.createElement('path', { strokeLinecap: 'round', strokeLinejoin: 'round', strokeWidth: 2, d: 'M12 4v16m8-8H4' })
-        );
-        
-        const Edit2 = () => React.createElement('svg', { className: 'w-4 h-4', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, 
-            React.createElement('path', { strokeLinecap: 'round', strokeLinejoin: 'round', strokeWidth: 2, d: 'M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7' }),
-            React.createElement('path', { strokeLinecap: 'round', strokeLinejoin: 'round', strokeWidth: 2, d: 'M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z' })
-        );
-        
-        const Trash2 = () => React.createElement('svg', { className: 'w-4 h-4', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, 
-            React.createElement('path', { strokeLinecap: 'round', strokeLinejoin: 'round', strokeWidth: 2, d: 'M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16' })
-        );
-
-        const API_BASE_URL = '/api';
-
-        const TransportCRM = () => {
-            const [trips, setTrips] = useState([]);
-            const [loading, setLoading] = useState(true);
-            const [showForm, setShowForm] = useState(false);
-            const [editingTrip, setEditingTrip] = useState(null);
-            const [activeTab, setActiveTab] = useState('trips');
-            const [formData, setFormData] = useState({
-                speedometerStart: '', speedometerEnd: '', startDate: '', endDate: '',
-                carNumber: '', driverName: '', route: '', fuelAmount: '', fuelLiters: '',
-                freightSum: '', repairCosts: '', unexpectedExpenses: ''
-            });
-
-            useEffect(() => { fetchTrips(); }, []);
-
-            const fetchTrips = async () => {
-                try {
-                    const response = await fetch(`${API_BASE_URL}/trips`);
-                    const data = await response.json();
-                    setTrips(data);
-                } catch (error) {
-                    console.error('Помилка:', error);
-                } finally {
-                    setLoading(false);
-                }
-            };
-
-            const calculateDailyAllowance = (startDate, endDate) => {
-                if (!startDate || !endDate) return 0;
-                const start = new Date(startDate);
-                const end = new Date(endDate);
-                const diffTime = Math.abs(end - start);
-                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                return diffDays * 200;
-            };
-
-            const calculateDriverSalary = (freightSum, fuelCost, dailyAllowance) => {
-                const result = (freightSum - fuelCost - dailyAllowance) / 4;
-                return Math.max(0, result);
-            };
-
-            const handleSubmit = async () => {
-                if (!formData.speedometerStart || !formData.freightSum) {
-                    alert('Заповніть обов\'язкові поля');
-                    return;
-                }
-                
-                const dailyAllowance = calculateDailyAllowance(formData.startDate, formData.endDate);
-                const fuelCost = parseFloat(formData.fuelAmount) || 0;
-                const freightSum = parseFloat(formData.freightSum) || 0;
-                const driverSalary = calculateDriverSalary(freightSum, fuelCost, dailyAllowance);
-                const distance = (parseFloat(formData.speedometerEnd) || 0) - (parseFloat(formData.speedometerStart) || 0);
-                
-                const tripData = {
-                    speedometerStart: parseFloat(formData.speedometerStart) || 0,
-                    speedometerEnd: parseFloat(formData.speedometerEnd) || 0,
-                    startDate: formData.startDate,
-                    endDate: formData.endDate,
-                    carNumber: formData.carNumber,
-                    driverName: formData.driverName,
-                    route: formData.route,
-                    fuelAmount: fuelCost,
-                    fuelLiters: parseFloat(formData.fuelLiters) || 0,
-                    freightSum: freightSum,
-                    repairCosts: parseFloat(formData.repairCosts) || 0,
-                    unexpectedExpenses: parseFloat(formData.unexpectedExpenses) || 0,
-                    dailyAllowance: dailyAllowance,
-                    driverSalary: driverSalary,
-                    distance: distance,
-                    pricePerKm: distance > 0 ? freightSum / distance : 0
-                };
-
-                try {
-                    const url = editingTrip ? `${API_BASE_URL}/trips/${editingTrip.id}` : `${API_BASE_URL}/trips`;
-                    const method = editingTrip ? 'PUT' : 'POST';
-                    
-                    await fetch(url, {
-                        method,
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(tripData),
-                    });
-                    
-                    fetchTrips();
-                    resetForm();
-                } catch (error) {
-                    alert('Помилка збереження');
-                }
-            };
-
-            const resetForm = () => {
-                setFormData({
-                    speedometerStart: '', speedometerEnd: '', startDate: '', endDate: '',
-                    carNumber: '', driverName: '', route: '', fuelAmount: '', fuelLiters: '',
-                    freightSum: '', repairCosts: '', unexpectedExpenses: ''
-                });
-                setShowForm(false);
-                setEditingTrip(null);
-            };
-
-            const editTrip = (trip) => {
-                setFormData({
-                    speedometerStart: trip.speedometerStart.toString(),
-                    speedometerEnd: trip.speedometerEnd.toString(),
-                    startDate: trip.startDate,
-                    endDate: trip.endDate,
-                    carNumber: trip.carNumber,
-                    driverName: trip.driverName || '',
-                    route: trip.route,
-                    fuelAmount: trip.fuelAmount.toString(),
-                    fuelLiters: trip.fuelLiters?.toString() || '',
-                    freightSum: trip.freightSum.toString(),
-                    repairCosts: trip.repairCosts?.toString() || '',
-                    unexpectedExpenses: trip.unexpectedExpenses.toString()
-                });
-                setEditingTrip(trip);
-                setShowForm(true);
-            };
-
-            const deleteTrip = async (id) => {
-                if (!confirm('Видалити рейс?')) return;
-                try {
-                    await fetch(`${API_BASE_URL}/trips/${id}`, { method: 'DELETE' });
-                    fetchTrips();
-                } catch (error) {
-                    alert('Помилка видалення');
-                }
-            };
-
-            if (loading) {
-                return React.createElement('div', { className: 'min-h-screen bg-gray-50 flex items-center justify-center' },
-                    React.createElement('div', { className: 'text-center' },
-                        React.createElement('div', { className: 'animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto' }),
-                        React.createElement('p', { className: 'mt-4 text-gray-600' }, 'Завантаження даних...')
-                    )
-                );
-            }
-
-            return React.createElement('div', { className: 'min-h-screen bg-gray-50 p-4' },
-                React.createElement('div', { className: 'max-w-7xl mx-auto' },
-                    React.createElement('h1', { className: 'text-3xl font-bold text-gray-900 mb-8' }, '🚚 CRM bus0011.com'),
-                    
-                    React.createElement('div', { className: 'mb-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded' },
-                        '✅ Підключено до Railway PostgreSQL'
-                    ),
-                    
-                    React.createElement('button', {
-                        onClick: () => setShowForm(true),
-                        className: 'mb-6 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center space-x-2'
-                    },
-                        React.createElement(Plus),
-                        React.createElement('span', null, 'Додати рейс')
-                    ),
-
-                    showForm && React.createElement('div', { className: 'bg-white rounded-lg shadow-md p-6 mb-6' },
-                        React.createElement('h2', { className: 'text-xl font-semibold mb-4' },
-                            editingTrip ? 'Редагувати рейс' : 'Новий рейс'
-                        ),
-                        React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4' },
-                            // Поля форми
-                            React.createElement('div', null,
-                                React.createElement('label', { className: 'block text-sm font-medium mb-1' }, 'Спідометр початок'),
-                                React.createElement('input', {
-                                    type: 'number',
-                                    value: formData.speedometerStart,
-                                    onChange: (e) => setFormData({...formData, speedometerStart: e.target.value}),
-                                    className: 'w-full border rounded-lg px-3 py-2'
-                                })
-                            ),
-                            React.createElement('div', null,
-                                React.createElement('label', { className: 'block text-sm font-medium mb-1' }, 'Спідометр кінець'),
-                                React.createElement('input', {
-                                    type: 'number',
-                                    value: formData.speedometerEnd,
-                                    onChange: (e) => setFormData({...formData, speedometerEnd: e.target.value}),
-                                    className: 'w-full border rounded-lg px-3 py-2'
-                                })
-                            ),
-                            React.createElement('div', null,
-                                React.createElement('label', { className: 'block text-sm font-medium mb-1' }, 'Номер авто'),
-                                React.createElement('input', {
-                                    type: 'text',
-                                    value: formData.carNumber,
-                                    onChange: (e) => setFormData({...formData, carNumber: e.target.value}),
-                                    className: 'w-full border rounded-lg px-3 py-2'
-                                })
-                            ),
-                            React.createElement('div', null,
-                                React.createElement('label', { className: 'block text-sm font-medium mb-1' }, 'Водій'),
-                                React.createElement('input', {
-                                    type: 'text',
-                                    value: formData.driverName,
-                                    onChange: (e) => setFormData({...formData, driverName: e.target.value}),
-                                    className: 'w-full border rounded-lg px-3 py-2'
-                                })
-                            ),
-                            React.createElement('div', null,
-                                React.createElement('label', { className: 'block text-sm font-medium mb-1' }, 'Маршрут'),
-                                React.createElement('input', {
-                                    type: 'text',
-                                    value: formData.route,
-                                    onChange: (e) => setFormData({...formData, route: e.target.value}),
-                                    className: 'w-full border rounded-lg px-3 py-2'
-                                })
-                            ),
-                            React.createElement('div', null,
-                                React.createElement('label', { className: 'block text-sm font-medium mb-1' }, 'Сума фрахту (грн)'),
-                                React.createElement('input', {
-                                    type: 'number',
-                                    step: '0.01',
-                                    value: formData.freightSum,
-                                    onChange: (e) => setFormData({...formData, freightSum: e.target.value}),
-                                    className: 'w-full border rounded-lg px-3 py-2'
-                                })
-                            ),
-                            React.createElement('div', { className: 'md:col-span-2 lg:col-span-3 flex space-x-2' },
-                                React.createElement('button', {
-                                    onClick: handleSubmit,
-                                    className: 'bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700'
-                                }, editingTrip ? 'Оновити' : 'Зберегти'),
-                                React.createElement('button', {
-                                    onClick: resetForm,
-                                    className: 'bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600'
-                                }, 'Скасувати')
-                            )
-                        )
-                    ),
-
-                    React.createElement('div', { className: 'bg-white rounded-lg shadow-md overflow-hidden' },
-                        React.createElement('div', { className: 'overflow-x-auto' },
-                            React.createElement('table', { className: 'w-full' },
-                                React.createElement('thead', { className: 'bg-gray-50' },
-                                    React.createElement('tr', null,
-                                        React.createElement('th', { className: 'px-4 py-3 text-left text-sm font-medium text-gray-900' }, 'Авто'),
-                                        React.createElement('th', { className: 'px-4 py-3 text-left text-sm font-medium text-gray-900' }, 'Водій'),
-                                        React.createElement('th', { className: 'px-4 py-3 text-left text-sm font-medium text-gray-900' }, 'Маршрут'),
-                                        React.createElement('th', { className: 'px-4 py-3 text-left text-sm font-medium text-gray-900' }, 'Фрахт'),
-                                        React.createElement('th', { className: 'px-4 py-3 text-left text-sm font-medium text-gray-900' }, 'Дії')
-                                    )
-                                ),
-                                React.createElement('tbody', { className: 'divide-y divide-gray-200' },
-                                    trips.map(trip => 
-                                        React.createElement('tr', { key: trip.id, className: 'hover:bg-gray-50' },
-                                            React.createElement('td', { className: 'px-4 py-3 text-sm' }, trip.carNumber),
-                                            React.createElement('td', { className: 'px-4 py-3 text-sm' }, trip.driverName || '-'),
-                                            React.createElement('td', { className: 'px-4 py-3 text-sm' }, trip.route),
-                                            React.createElement('td', { className: 'px-4 py-3 text-sm font-semibold text-green-600' }, 
-                                                trip.freightSum?.toFixed(2) + ' грн'
-                                            ),
-                                            React.createElement('td', { className: 'px-4 py-3 text-sm' },
-                                                React.createElement('div', { className: 'flex space-x-2' },
-                                                    React.createElement('button', {
-                                                        onClick: () => editTrip(trip),
-                                                        className: 'text-blue-600 hover:text-blue-800'
-                                                    }, React.createElement(Edit2)),
-                                                    React.createElement('button', {
-                                                        onClick: () => deleteTrip(trip.id),
-                                                        className: 'text-red-600 hover:text-red-800'
-                                                    }, React.createElement(Trash2))
-                                                )
-                                            )
-                                        )
-                                    )
-                                )
-                            ),
-                            trips.length === 0 && React.createElement('div', { className: 'text-center py-8 text-gray-500' },
-                                'Рейсів поки що немає. Додайте перший рейс!'
-                            )
-                        )
-                    )
-                )
-            );
+    trips.forEach(trip => {
+      if (!carStats[trip.carNumber]) {
+        carStats[trip.carNumber] = {
+          carNumber: trip.carNumber,
+          totalTrips: 0,
+          totalDistance: 0,
+          totalFuel: 0,
+          totalFuelLiters: 0,
+          totalFreight: 0,
+          totalDriverSalaries: 0,
+          totalDailyAllowances: 0,
+          totalRepairCosts: 0,
+          totalUnexpectedExpenses: 0,
+          drivers: new Set()
         };
+      }
+      
+      const car = carStats[trip.carNumber];
+      car.totalTrips += 1;
+      car.totalDistance += trip.distance || 0;
+      car.totalFuel += trip.fuelAmount || 0;
+      car.totalFuelLiters += trip.fuelLiters || 0;
+      car.totalFreight += trip.freightSum || 0;
+      car.totalDriverSalaries += trip.driverSalary || 0;
+      car.totalDailyAllowances += trip.dailyAllowance || 0;
+      car.totalRepairCosts += trip.repairCosts || 0;
+      car.totalUnexpectedExpenses += trip.unexpectedExpenses || 0;
+      if (trip.driverName) {
+        car.drivers.add(trip.driverName);
+      }
+    });
 
-        // Запуск додатку
-        ReactDOM.render(React.createElement(TransportCRM), document.getElementById('root'));
-    
+    // Розрахунок додаткових показників
+    Object.values(carStats).forEach(car => {
+      car.totalProfit = car.totalFreight - car.totalFuel - car.totalDailyAllowances - car.totalDriverSalaries - car.totalRepairCosts - car.totalUnexpectedExpenses;
+      car.avgDistance = car.totalDistance / car.totalTrips;
+      car.avgFuelConsumption = car.totalDistance > 0 ? car.totalFuelLiters / car.totalDistance * 100 : 0;
+      car.avgPricePerKm = car.totalDistance > 0 ? car.totalFreight / car.totalDistance : 0;
+      car.driversArray = Array.from(car.drivers);
+    });
 
+    return Object.values(carStats);
+  };
 
-```
+  const stats = getStatistics();
+  const carStats = getCarStatistics();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Завантаження даних...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50 p-4">
+      <div className="max-w-7xl mx-auto">
+        <h1 className="text-3xl font-bold text-gray-900 mb-8">CRM для вантажних перевезень</h1>
+        
+        <div className="mb-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded">
+          ✅ Підключено до PostgreSQL бази даних (Об&apos;єднаний сервер на порту 3000)
+        </div>
+        
+        <div className="flex space-x-1 mb-6">
+          <button
+            onClick={() => setActiveTab('trips')}
+            className={`px-4 py-2 rounded-lg font-medium ${
+              activeTab === 'trips'
+                ? 'bg-blue-600 text-white'
+                : 'bg-white text-gray-700 hover:bg-gray-100'
+            }`}
+          >
+            Рейси
+          </button>
+          <button
+            onClick={() => setActiveTab('statistics')}
+            className={`px-4 py-2 rounded-lg font-medium ${
+              activeTab === 'statistics'
+                ? 'bg-blue-600 text-white'
+                : 'bg-white text-gray-700 hover:bg-gray-100'
+            }`}
+          >
+            Загальна статистика
+          </button>
+          <button
+            onClick={() => setActiveTab('carStats')}
+            className={`px-4 py-2 rounded-lg font-medium ${
+              activeTab === 'carStats'
+                ? 'bg-blue-600 text-white'
+                : 'bg-white text-gray-700 hover:bg-gray-100'
+            }`}
+          >
+            Статистика по авто
+          </button>
+        </div>
+
+        {activeTab === 'trips' && (
+          <>
+            <button
+              onClick={() => setShowForm(true)}
+              className="mb-6 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center space-x-2"
+            >
+              <Plus size={20} />
+              <span>Додати рейс</span>
+            </button>
+
+            {showForm && (
+              <div className="bg-white rounded-lg shadow-md p-6">
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">Непередбачувані витрати</p>
+                <p className="text-2xl font-semibold text-purple-600">{stats.totalUnexpectedExpenses.toFixed(2)} грн</p>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">Чистий прибуток</p>
+                <p className={`text-2xl font-semibold ${stats.totalProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {stats.totalProfit.toFixed(2)} грн
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'carStats' && (
+          <div className="space-y-6">
+            {carStats.map((car) => (
+              <div key={car.carNumber} className="bg-white rounded-lg shadow-md p-6">
+                <h3 className="text-xl font-semibold mb-4 text-gray-900">
+                  Автомобіль: {car.carNumber}
+                </h3>
+                <div className="mb-4">
+                  <p className="text-sm text-gray-600">
+                    Водії: {car.driversArray.join(', ') || 'Не вказано'}
+                  </p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <p className="text-sm font-medium text-gray-600">Кількість рейсів</p>
+                    <p className="text-xl font-semibold text-blue-600">{car.totalTrips}</p>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <p className="text-sm font-medium text-gray-600">Загальний пробіг</p>
+                    <p className="text-xl font-semibold text-green-600">{car.totalDistance} км</p>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <p className="text-sm font-medium text-gray-600">Середній пробіг</p>
+                    <p className="text-xl font-semibold text-gray-900">{car.avgDistance.toFixed(0)} км</p>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <p className="text-sm font-medium text-gray-600">Загальний фрахт</p>
+                    <p className="text-xl font-semibold text-green-600">{car.totalFreight.toFixed(2)} грн</p>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <p className="text-sm font-medium text-gray-600">Витрати на паливо</p>
+                    <p className="text-xl font-semibold text-red-600">{car.totalFuel.toFixed(2)} грн</p>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <p className="text-sm font-medium text-gray-600">Обсяг палива</p>
+                    <p className="text-xl font-semibold text-purple-600">{car.totalFuelLiters.toFixed(1)} л</p>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <p className="text-sm font-medium text-gray-600">Витрати на ремонт</p>
+                    <p className="text-xl font-semibold text-yellow-600">{car.totalRepairCosts.toFixed(2)} грн</p>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <p className="text-sm font-medium text-gray-600">Ціна за 1 км</p>
+                    <p className="text-xl font-semibold text-indigo-600">{car.avgPricePerKm.toFixed(2)} грн/км</p>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <p className="text-sm font-medium text-gray-600">Зарплати водіїв</p>
+                    <p className="text-xl font-semibold text-blue-600">{car.totalDriverSalaries.toFixed(2)} грн</p>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <p className="text-sm font-medium text-gray-600">Чистий прибуток</p>
+                    <p className={`text-xl font-semibold ${car.totalProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {car.totalProfit.toFixed(2)} грн
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+            
+            {carStats.length === 0 && (
+              <div className="text-center py-8 text-gray-500">
+                Додайте рейси, щоб побачити статистику по автомобілях
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default TransportCRM;-white rounded-lg shadow-md p-6 mb-6">
+                <h2 className="text-xl font-semibold mb-4">
+                  {editingTrip ? 'Редагувати рейс' : 'Новий рейс'}
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Спідометр початок</label>
+                    <input
+                      type="number"
+                      value={formData.speedometerStart}
+                      onChange={(e) => setFormData({...formData, speedometerStart: e.target.value})}
+                      className="w-full border rounded-lg px-3 py-2"
+                      required
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Спідометр кінець</label>
+                    <input
+                      type="number"
+                      value={formData.speedometerEnd}
+                      onChange={(e) => setFormData({...formData, speedometerEnd: e.target.value})}
+                      className="w-full border rounded-lg px-3 py-2"
+                      required
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Дата початку</label>
+                    <input
+                      type="date"
+                      value={formData.startDate}
+                      onChange={(e) => setFormData({...formData, startDate: e.target.value})}
+                      className="w-full border rounded-lg px-3 py-2"
+                      required
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Дата кінця</label>
+                    <input
+                      type="date"
+                      value={formData.endDate}
+                      onChange={(e) => setFormData({...formData, endDate: e.target.value})}
+                      className="w-full border rounded-lg px-3 py-2"
+                      required
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Номер авто</label>
+                    <input
+                      type="text"
+                      value={formData.carNumber}
+                      onChange={(e) => setFormData({...formData, carNumber: e.target.value})}
+                      className="w-full border rounded-lg px-3 py-2"
+                      required
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Прізвище водія</label>
+                    <input
+                      type="text"
+                      value={formData.driverName}
+                      onChange={(e) => setFormData({...formData, driverName: e.target.value})}
+                      className="w-full border rounded-lg px-3 py-2"
+                      required
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Маршрут</label>
+                    <input
+                      type="text"
+                      value={formData.route}
+                      onChange={(e) => setFormData({...formData, route: e.target.value})}
+                      className="w-full border rounded-lg px-3 py-2"
+                      placeholder="Київ - Львів"
+                      required
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Витрати на паливо (грн)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={formData.fuelAmount}
+                      onChange={(e) => setFormData({...formData, fuelAmount: e.target.value})}
+                      className="w-full border rounded-lg px-3 py-2"
+                      required
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Кількість палива (л)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={formData.fuelLiters}
+                      onChange={(e) => setFormData({...formData, fuelLiters: e.target.value})}
+                      className="w-full border rounded-lg px-3 py-2"
+                      required
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Сума фрахту (грн)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={formData.freightSum}
+                      onChange={(e) => setFormData({...formData, freightSum: e.target.value})}
+                      className="w-full border rounded-lg px-3 py-2"
+                      required
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Витрати на ремонт (грн)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={formData.repairCosts}
+                      onChange={(e) => setFormData({...formData, repairCosts: e.target.value})}
+                      className="w-full border rounded-lg px-3 py-2"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Непередбачувані витрати (грн)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={formData.unexpectedExpenses}
+                      onChange={(e) => setFormData({...formData, unexpectedExpenses: e.target.value})}
+                      className="w-full border rounded-lg px-3 py-2"
+                    />
+                  </div>
+                  
+                  <div className="md:col-span-2 lg:col-span-3 flex space-x-2">
+                    <button
+                      type="button"
+                      onClick={handleSubmit}
+                      className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"
+                    >
+                      {editingTrip ? 'Оновити' : 'Зберегти'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={resetForm}
+                      className="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600"
+                    >
+                      Скасувати
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="bg-white rounded-lg shadow-md overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full table-auto">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">Авто</th>
+                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">Водій</th>
+                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">Маршрут</th>
+                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">Період</th>
+                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">Км</th>
+                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">Фрахт</th>
+                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">Паливо</th>
+                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">Літри</th>
+                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">Ремонт</th>
+                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">Суточні</th>
+                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">Зарплата</th>
+                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">Дії</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {trips.map((trip) => (
+                      <tr key={trip.id} className="hover:bg-gray-50">
+                        <td className="px-4 py-3 text-sm">{trip.carNumber}</td>
+                        <td className="px-4 py-3 text-sm">{trip.driverName || '-'}</td>
+                        <td className="px-4 py-3 text-sm">{trip.route}</td>
+                        <td className="px-4 py-3 text-sm">
+                          {new Date(trip.startDate).toLocaleDateString()} - {new Date(trip.endDate).toLocaleDateString()}
+                        </td>
+                        <td className="px-4 py-3 text-sm">{trip.distance}</td>
+                        <td className="px-4 py-3 text-sm">{trip.freightSum.toFixed(2)} грн</td>
+                        <td className="px-4 py-3 text-sm">{trip.fuelAmount.toFixed(2)} грн</td>
+                        <td className="px-4 py-3 text-sm">{trip.fuelLiters?.toFixed(1) || '-'} л</td>
+                        <td className="px-4 py-3 text-sm">{trip.repairCosts?.toFixed(2) || '0.00'} грн</td>
+                        <td className="px-4 py-3 text-sm">{trip.dailyAllowance} грн</td>
+                        <td className="px-4 py-3 text-sm font-semibold text-green-600">{trip.driverSalary.toFixed(2)} грн</td>
+                        <td className="px-4 py-3 text-sm">
+                          <div className="flex space-x-2">
+                            <button
+                              onClick={() => editTrip(trip)}
+                              className="text-blue-600 hover:text-blue-800"
+                            >
+                              <Edit2 size={16} />
+                            </button>
+                            <button
+                              onClick={() => deleteTrip(trip.id)}
+                              className="text-red-600 hover:text-red-800"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                
+                {trips.length === 0 && (
+                  <div className="text-center py-8 text-gray-500">
+                    Рейсів поки що немає. Додайте перший рейс!
+                  </div>
+                )}
+              </div>
+            </div>
+          </>
+        )}
+
+        {activeTab === 'statistics' && stats && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <div className="flex items-center">
+                <TrendingUp className="h-8 w-8 text-blue-600" />
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">Загальна кількість рейсів</p>
+                  <p className="text-2xl font-semibold text-gray-900">{stats.totalTrips}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <div className="flex items-center">
+                <Calculator className="h-8 w-8 text-green-600" />
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">Загальний пробіг</p>
+                  <p className="text-2xl font-semibold text-gray-900">{stats.totalDistance.toLocaleString()} км</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">Середній пробіг за рейс</p>
+                <p className="text-2xl font-semibold text-gray-900">{stats.avgDistance.toFixed(0)} км</p>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">Загальний фрахт</p>
+                <p className="text-2xl font-semibold text-green-600">{stats.totalFreight.toFixed(2)} грн</p>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">Витрати на паливо</p>
+                <p className="text-2xl font-semibold text-red-600">{stats.totalFuel.toFixed(2)} грн</p>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">Загальний обсяг палива</p>
+                <p className="text-2xl font-semibold text-purple-600">{stats.totalFuelLiters.toFixed(1)} л</p>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">Витрати на ремонт</p>
+                <p className="text-2xl font-semibold text-yellow-600">{stats.totalRepairCosts.toFixed(2)} грн</p>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">Суточні витрати</p>
+                <p className="text-2xl font-semibold text-orange-600">{stats.totalDailyAllowances.toFixed(2)} грн</p>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">Зарплати водіїв</p>
+                <p className="text-2xl font-semibold text-blue-600">{stats.totalDriverSalaries.toFixed(2)} грн</p>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">Ціна за 1 км</p>
+                <p className="text-2xl font-semibold text-indigo-600">{stats.avgPricePerKm.toFixed(2)} грн/км</p>
+              </div>
+            </div>
+
+            <div className="bg
