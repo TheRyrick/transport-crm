@@ -450,6 +450,22 @@
         // Глобальні змінні
         let trips = [];
 
+        // Розрахунок суточних
+        function calculateDailyAllowance(startDate, endDate) {
+            if (!startDate || !endDate) return 0;
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+            const diffTime = Math.abs(end - start);
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            return diffDays * 200;
+        }
+
+        // Розрахунок зарплати водія
+        function calculateDriverSalary(freightSum, fuelCost, dailyAllowance) {
+            const result = (freightSum - fuelCost - dailyAllowance) / 4;
+            return Math.max(0, result);
+        }
+
         // Ініціалізація
         document.addEventListener('DOMContentLoaded', function() {
             console.log('🚀 CRM система запускається...');
@@ -550,6 +566,8 @@
 
         // Збереження рейсу
         async function saveTrip() {
+            console.log('🔧 Початок збереження рейсу...');
+            
             const speedometerStart = parseInt(document.getElementById('speedometerStart').value) || 0;
             const speedometerEnd = parseInt(document.getElementById('speedometerEnd').value) || 0;
             const startDate = document.getElementById('startDate').value;
@@ -557,42 +575,50 @@
             const fuelAmount = parseFloat(document.getElementById('fuelAmount').value) || 0;
             const freightSum = parseFloat(document.getElementById('freightSum').value) || 0;
             
+            console.log('📝 Дані з форми:', { speedometerStart, speedometerEnd, startDate, endDate, fuelAmount, freightSum });
+            
             // Перевірка обов'язкових полів
             if (!document.getElementById('carNumber').value || !startDate || !endDate) {
                 alert('⚠️ Будь ласка, заповніть обов\'язкові поля: номер авто, дати');
                 return;
             }
 
-            // Розрахунки
-            const distance = speedometerEnd - speedometerStart;
-            const dailyAllowance = calculateDailyAllowance(startDate, endDate);
-            const driverSalary = calculateDriverSalary(freightSum, fuelAmount, dailyAllowance);
-
-            const tripData = {
-                speedometerStart: speedometerStart,
-                speedometerEnd: speedometerEnd,
-                startDate: startDate,
-                endDate: endDate,
-                carNumber: document.getElementById('carNumber').value,
-                driverName: document.getElementById('driverName').value,
-                route: document.getElementById('route').value,
-                fuelAmount: fuelAmount,
-                fuelLiters: parseFloat(document.getElementById('fuelLiters').value) || 0,
-                freightSum: freightSum,
-                repairCosts: parseFloat(document.getElementById('repairCosts').value) || 0,
-                unexpectedExpenses: parseFloat(document.getElementById('unexpectedExpenses').value) || 0,
-                dailyAllowance: dailyAllowance,
-                driverSalary: driverSalary,
-                distance: distance,
-                pricePerKm: distance > 0 ? freightSum / distance : 0
-            };
-
             try {
+                // Розрахунки
+                const distance = speedometerEnd - speedometerStart;
+                const dailyAllowance = calculateDailyAllowance(startDate, endDate);
+                const driverSalary = calculateDriverSalary(freightSum, fuelAmount, dailyAllowance);
+
+                console.log('🧮 Розрахунки:', { distance, dailyAllowance, driverSalary });
+
+                const tripData = {
+                    speedometerStart: speedometerStart,
+                    speedometerEnd: speedometerEnd,
+                    startDate: startDate,
+                    endDate: endDate,
+                    carNumber: document.getElementById('carNumber').value,
+                    driverName: document.getElementById('driverName').value,
+                    route: document.getElementById('route').value,
+                    fuelAmount: fuelAmount,
+                    fuelLiters: parseFloat(document.getElementById('fuelLiters').value) || 0,
+                    freightSum: freightSum,
+                    repairCosts: parseFloat(document.getElementById('repairCosts').value) || 0,
+                    unexpectedExpenses: parseFloat(document.getElementById('unexpectedExpenses').value) || 0,
+                    dailyAllowance: dailyAllowance,
+                    driverSalary: driverSalary,
+                    distance: distance,
+                    pricePerKm: distance > 0 ? freightSum / distance : 0
+                };
+
+                console.log('📊 Підготовлені дані для відправки:', tripData);
+
                 const response = await fetch('/api/trips', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(tripData)
                 });
+
+                console.log('📡 Відповідь сервера:', response.status);
 
                 if (response.ok) {
                     alert('✅ Рейс успішно збережено!\n\n' + 
@@ -600,11 +626,14 @@
                           `💵 Суточні: ${dailyAllowance} грн\n` +
                           `💸 Зарплата водія: ${driverSalary.toFixed(2)} грн`);
                     hideForm();
-                    loadTrips();
+                    await loadTrips();
                 } else {
-                    alert('❌ Помилка збереження рейсу');
+                    const errorText = await response.text();
+                    console.error('❌ Помилка сервера:', errorText);
+                    alert('❌ Помилка збереження рейсу: ' + errorText);
                 }
             } catch (error) {
+                console.error('❌ Помилка запиту:', error);
                 alert('❌ Помилка: ' + error.message);
             }
         }
