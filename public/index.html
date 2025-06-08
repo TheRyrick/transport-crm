@@ -1,9 +1,22 @@
-    <!-- Навігаційні вкладки -->
+  <!-- Навігаційні вкладки -->
         <div style="display: flex; gap: 10px; margin-bottom: 30px; flex-wrap: wrap;">
             <button onclick="showTab('trips')" id="tripsTab" class="btn btn-primary">📋 Рейси</button>
             <button onclick="showTab('generalStats')" id="generalStatsTab" class="btn btn-secondary">📊 Загальна статистика</button>
             <button onclick="showTab('carStats')" id="carStatsTab" class="btn btn-secondary">🚛 Статистика по авто</button>
-        </div>        // Розрахунок суточних
+            <!-- Інформація про зберігання -->
+        <div style="background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(20px); border-radius: 20px; padding: 25px; margin-top: 30px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);">
+            <h3 style="margin-bottom: 15px; color: #333; display: flex; align-items: center; gap: 10px;">
+                <span style="font-size: 1.5rem;">💾</span>
+                Де зберігаються ваші дані?
+            </h3>
+            <div style="color: #666; line-height: 1.6;">
+                <p><strong>🌐 Поточне зберігання:</strong> Дані зберігаються в оперативній пам'яті Railway сервера (тимчасово)</p>
+                <p><strong>⚠️ Важливо:</strong> При перезапуску сервера дані можуть втратитись</p>
+                <p><strong>🔄 Рекомендація:</strong> Для постійного зберігання потрібно підключити PostgreSQL базу даних</p>
+                <p><strong>💡 Наступний крок:</strong> Після тестування налаштуємо постійну базу даних</p>
+            </div>
+        </div>
+    </div>        // Розрахунок суточних
         function calculateDailyAllowance(startDate, endDate) {
             if (!startDate || !endDate) return 0;
             const start = new Date(startDate);
@@ -35,13 +48,15 @@
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             color: #333;
-            overflow-x: hidden; /* Приховуємо горизонтальний скрол */
+            overflow: hidden; /* Приховуємо весь скрол */
         }
         
         .container {
             max-width: 1200px;
             margin: 0 auto;
             padding: 20px;
+            height: 100vh;
+            overflow-y: auto; /* Дозволяємо вертикальний скрол тільки для контенту */
         }
         
         .header {
@@ -312,7 +327,7 @@
         <!-- Хедер -->
         <div class="header">
             <h1>🚚 CRM bus0011.com</h1>
-            <p>Система управління вантажними перевезеннями</p>
+            <p>ВАНТАЖНІ ПЕРЕВЕЗЕННЯ</p>
             <div class="status" id="status">🟢 Система працює</div>
         </div>
 
@@ -337,10 +352,18 @@
             </div>
         </div>
 
+        <!-- Швидка кнопка додавання -->
+        <div style="text-align: center; margin: 30px 0;">
+            <button class="add-btn" onclick="showForm(); showTab('trips');" style="font-size: 1.2rem; padding: 20px 40px;">
+                ➕ ДОДАТИ НОВИЙ РЕЙС
+            </button>
+            <p style="color: rgba(255,255,255,0.8); margin-top: 10px;">Натисніть щоб розпочати ведення обліку</p>
+        </div>
+
         <!-- Контент вкладок -->
         <div id="tripsContent">
             <!-- Кнопка додавання -->
-            <button class="add-btn" onclick="showForm()">
+            <button class="add-btn" onclick="showForm()" style="margin-bottom: 30px;">
                 ➕ Додати новий рейс
             </button>
 
@@ -798,7 +821,7 @@
             document.getElementById('unexpectedExpenses').value = '';
         }
 
-        console.log('🎉 CRM система готова!');
+        console.log(''); // Прибираємо всі console.log
     </script>
 </body>
 </html>
